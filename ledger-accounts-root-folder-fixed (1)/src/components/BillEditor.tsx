@@ -18,7 +18,7 @@ export default function BillEditor({initialId}:{initialId?:string}) {
  const outstanding=Math.max(0,totals.total-draft.amount_paid); const canEdit=ready&&(status==="draft"||authorized);
  const patch=(key:keyof Draft,value:unknown)=>{dirty.current=true;setDraft(d=>({...d,[key]:value}));};
  const payload=useCallback(()=>({...draft,lines:draft.lines,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"Asia/Kolkata"}),[draft]);
- const saveDraft=useCallback(async()=>{
+  const saveDraft=useCallback(async():Promise<string>=>{
    if(status!=="draft")return billId;
    if(saving.current){await savePromise.current;return dirty.current?saveDraft():billId;}
    saving.current=true;
