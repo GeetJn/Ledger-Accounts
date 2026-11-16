@@ -38,8 +38,9 @@ export function buildReportAnalytics(
   const items = new Map<string, { name: string; quantity: number; sales: number }>();
 
   const endMonth = (to || now.toISOString().slice(0, 10)).slice(0, 7);
-  const defaultStart = new Date(Number(endMonth.slice(0, 4)), Number(endMonth.slice(5, 7)) - 6, 1);
-  const startMonth = (from || defaultStart.toISOString().slice(0, 7)).slice(0, 7);
+  const defaultStart = new Date(Number(endMonth.slice(0, 4)), Number(endMonth.slice(5, 7)) - 5, 1);
+  const defaultStartKey = defaultStart.getFullYear() + "-" + String(defaultStart.getMonth() + 1).padStart(2, "0");
+  const startMonth = from ? from.slice(0, 7) : defaultStartKey;
   const finish = new Date(Number(endMonth.slice(0, 4)), Number(endMonth.slice(5, 7)) - 1, 1);
   let cursor = new Date(Number(startMonth.slice(0, 4)), Number(startMonth.slice(5, 7)) - 1, 1);
   const monthSpan = (finish.getFullYear() - cursor.getFullYear()) * 12 + finish.getMonth() - cursor.getMonth() + 1;
