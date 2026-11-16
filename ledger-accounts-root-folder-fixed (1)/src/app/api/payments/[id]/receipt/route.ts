@@ -24,14 +24,28 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     const doc = new jsPDF({ unit: "mm", format: "a5" });
     const width = 148, left = 14, right = width - 14;
+    const pageHeight = doc.internal.pageSize.getHeight();
     let y = 18;
+    function ensureSpace(height: number) {
+      if (y + height > pageHeight - 16) {
+        doc.addPage();
+        y = 18;
+      }
+    }
     const locale = shop?.locale || "en-IN", timezone = shop?.timezone || "Asia/Kolkata", currency = shop?.currency || "INR";
     const curr = (n: number) => new Intl.NumberFormat(locale, { style: "currency", currency }).format(n);
     doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text(shop?.name || "Ledger Accounts", left, y); y += 8;
     doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-    for (const value of [shop?.address, shop?.phone_e164, shop?.tax_identifier ? `${shop.tax_label || "Tax ID"}: ${shop.tax_identifier}` : ""]) {
-      if (value) { const lines = doc.splitTextToSize(String(value), right - left); doc.text(lines, left, y); y += lines.length * 4.5; }
+    const taxLine = shop?.tax_identifier ? (shop.tax_label || "Tax ID") + ": " + shop.tax_identifier : "";
+    for (const value of [shop?.address, shop?.phone_e164, taxLine]) {
+      if (value) {
+        const lines = doc.splitTextToSize(String(value), right - left);
+        ensureSpace(lines.length * 4.5 + 2);
+        doc.text(lines, left, y);
+        y += lines.length * 4.5;
+      }
     }
+    ensureSpace(30);
     y += 5; doc.setDrawColor(210); doc.line(left, y, right, y); y += 9;
     doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.text(payment.reversed_at ? "PAYMENT REVERSAL RECORD" : "PAYMENT RECEIPT", left, y); y += 9;
     doc.setFont("helvetica", "normal"); doc.setFontSize(10);
@@ -46,14 +60,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     for (const [label, value] of rows) {
       doc.setFont("helvetica", "bold"); doc.text(label, left, y);
       doc.setFont("helvetica", "normal");
-      const lines = doc.splitTextToSize(value, 75); doc.text(lines, 65, y); y += Math.max(6, lines.length * 5);
+      const lines = doc.splitTextToSize(value, 75);
+      const height = Math.max(6, lines.length * 5);
+      ensureSpace(height + 2);
+      doc.text(lines, 65, y);
+      y += height;
     }
     if (payment.reversed_at) {
       y += 4; doc.setTextColor(160, 45, 45); doc.setFont("helvetica", "bold"); doc.text("REVERSED", left, y); y += 6;
       doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
-      const reason = doc.splitTextToSize(`Reason: ${payment.reversal_reason || "Not provided"}`, right - left);
+      const reason = doc.splitTextToSize("Reason: " + (payment.reversal_reason || "Not provided"), right - left);
+      ensureSpace(reason.length * 5 + 2);
       doc.text(reason, left, y); y += reason.length * 5;
     }
+    ensureSpace(20);
     y += 5; doc.setDrawColor(210); doc.line(left, y, right, y); y += 8;
     doc.setFont("helvetica", "normal"); doc.setFontSize(9);
     doc.text(`Invoice total: ${curr(Number(bill.final_amount || 0))}`, left, y); y += 5;
