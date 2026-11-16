@@ -11,13 +11,13 @@ async function readTable(supabase: Awaited<ReturnType<typeof createClient>>, tab
   const maxRows = 20000;
   let total = 0;
   for (let start = 0; start < maxRows; start += pageSize) {
-    const { data, error, count } = await supabase.from(table).select("*", { count: "exact" }).range(start, start + pageSize - 1);
+    const { data, error, count } = await supabase.from(table).select("*", { count: "exact" }).order("id", { ascending: true }).range(start, start + pageSize - 1);
     if (error) throw error;
     total = count || total;
     rows.push(...((data || []) as unknown as Record<string, unknown>[]));
     if (!data || data.length < pageSize) break;
   }
-  if (total > maxRows || rows.length >= maxRows) throw new Error(`The ${table} table exceeds the 20,000-row backup limit. Use a database backup for larger accounts.`);
+  if (total > maxRows) throw new Error(`The ${table} table exceeds the 20,000-row backup limit. Use a database backup for larger accounts.`);
   return rows;
 }
 
@@ -31,7 +31,7 @@ export async function GET() {
     if (profileError || !profile?.shop_id) return NextResponse.json({ error: "Business profile not found" }, { status: 404 });
 
     const [shopResult, ...tableData] = await Promise.all([
-      supabase.from("shops").select("id,name,owner_name,phone_e164,email,address,country_code,currency,locale,timezone,tax_label,tax_identifier,invoice_footer,language,default_tax_rate,created_at,updated_at").eq("id", profile.shop_id).single(),
+      supabase.from("shops").select("id,name,owner_name,phone_e164,email,address,country_code,currency,locale,timezone,tax_label,tax_identifier,logo_path,invoice_footer,language,default_tax_rate,created_at,updated_at").eq("id", profile.shop_id).single(),
       ...exportTables.map((table) => readTable(supabase, table)),
     ]);
     if (shopResult.error || !shopResult.data) throw shopResult.error || new Error("Business settings could not be exported");
