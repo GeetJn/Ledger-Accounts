@@ -12,7 +12,7 @@ type Draft={customer_id:string|null;customer_name:string;customer_phone:string;c
 const empty:Draft={customer_id:null,customer_name:"",customer_phone:"",customer_country:"IN",customer_address:"",bill_title:"",bill_date:new Date().toISOString().slice(0,10),due_date:"",notes:"",tax_rate:0,bill_discount:0,amount_paid:0,lines:[]};
 export default function BillEditor({initialId}:{initialId?:string}) {
  const router=useRouter(); const [draft,setDraft]=useState<Draft>(empty); const [billId,setBillId]=useState(initialId||""); const [billNumber,setBillNumber]=useState<number|null>(null); const [status,setStatus]=useState("draft");
- const [items,setItems]=useState<Item[]>([]); const [customers,setCustomers]=useState<Customer[]>([]); const [search,setSearch]=useState(""); const [busy,setBusy]=useState(false); const [ready,setReady]=useState(false); const [error,setError]=useState(""); const [savedAt,setSavedAt]=useState(""); const [verifyOpen,setVerifyOpen]=useState(false); const [method,setMethod]=useState("normal"); const [password,setPassword]=useState(""); const [authorized,setAuthorized]=useState(false); const [reason,setReason]=useState(""); const [cancelReason,setCancelReason]=useState("");
+ const [items,setItems]=useState<Item[]>([]); const [customers,setCustomers]=useState<Customer[]>([]); const [search,setSearch]=useState(""); const [busy,setBusy]=useState(false); const [ready,setReady]=useState(false); const [error,setError]=useState(""); const [savedAt,setSavedAt]=useState(""); const [verifyOpen,setVerifyOpen]=useState(false); const [method,setMethod]=useState("normal"); const [password,setPassword]=useState(""); const [authorized,setAuthorized]=useState(false); const [reason,setReason]=useState(""); const [cancelReason,setCancelReason]=useState(""); const [savedCancellationReason,setSavedCancellationReason]=useState("");
  const isLoaded=useRef(false); const initializing=useRef(false); const saving=useRef(false); const savePromise=useRef<Promise<string>|null>(null); const dirty=useRef(false); const latestDraft=useRef(draft); latestDraft.current=draft;
  const totals=useMemo(()=>calculateBill(draft.lines,draft.bill_discount,draft.tax_rate),[draft.lines,draft.bill_discount,draft.tax_rate]);
  const outstanding=Math.max(0,totals.total-draft.amount_paid); const canEdit=ready&&(status==="draft"||authorized);
@@ -31,7 +31,7 @@ export default function BillEditor({initialId}:{initialId?:string}) {
    try{return await operation;}finally{saving.current=false;savePromise.current=null;}
  },[billId,draft,payload,status]);
  useEffect(()=>{if(initializing.current)return;initializing.current=true;(async()=>{try{const [ir,cr]=await Promise.all([fetch("/api/records/items"),fetch("/api/records/customers")]);const ij=await ir.json(),cj=await cr.json();setItems(ij.data||[]);setCustomers(cj.data||[]);
-   if(initialId){const r=await fetch(`/api/bills/${initialId}`);const j=await r.json();if(!r.ok)throw new Error(j.error);const b=j.data;setBillId(b.id);setBillNumber(b.bill_number);setStatus(b.status);setDraft({customer_id:b.customer_id,customer_name:b.customer_name||"",customer_phone:b.customer_phone_e164||"",customer_country:parsePhoneNumberFromString(b.customer_phone_e164||"")?.country||"IN",customer_address:b.customer_address||"",bill_title:b.bill_title||"",bill_date:b.bill_date||empty.bill_date,due_date:b.due_date||"",notes:b.notes||"",tax_rate:Number(b.tax_rate||0),bill_discount:Number(b.bill_level_discount||0),amount_paid:Number(b.amount_paid||0),lines:(b.bill_items||[]).map((l:Record<string,unknown>)=>({item_id:l.item_id as string|null,name:String(l.item_name),quantity:Number(l.quantity),unit:String(l.unit),rate:Number(l.rate),mrp:Number(l.mrp),discount:Number(l.discount),show_price_discount:Boolean(l.show_price_discount)}))});setReady(true);}
+   if(initialId){const r=await fetch(`/api/bills/${initialId}`);const j=await r.json();if(!r.ok)throw new Error(j.error);const b=j.data;setBillId(b.id);setBillNumber(b.bill_number);setStatus(b.status);setSavedCancellationReason(String(b.cancellation_reason||""));setDraft({customer_id:b.customer_id,customer_name:b.customer_name||"",customer_phone:b.customer_phone_e164||"",customer_country:parsePhoneNumberFromString(b.customer_phone_e164||"")?.country||"IN",customer_address:b.customer_address||"",bill_title:b.bill_title||"",bill_date:b.bill_date||empty.bill_date,due_date:b.due_date||"",notes:b.notes||"",tax_rate:Number(b.tax_rate||0),bill_discount:Number(b.bill_level_discount||0),amount_paid:Number(b.amount_paid||0),lines:(b.bill_items||[]).map((l:Record<string,unknown>)=>({item_id:l.item_id as string|null,name:String(l.item_name),quantity:Number(l.quantity),unit:String(l.unit),rate:Number(l.rate),mrp:Number(l.mrp),discount:Number(l.discount),show_price_discount:Boolean(l.show_price_discount)}))});setReady(true);}
    else if(!billId){const r=await fetch("/api/bills",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...empty,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone})});const j=await r.json();if(!r.ok)throw new Error(j.error);setBillId(j.id);setReady(true);}
    isLoaded.current=true;
  }catch(e){setError(e instanceof Error?e.message:"Unable to load bill editor");}})();},[initialId]);
@@ -43,7 +43,7 @@ export default function BillEditor({initialId}:{initialId?:string}) {
  async function saveRevision(){setBusy(true);setError("");try{const r=await fetch(`/api/bills/${billId}/revise`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...payload(),reason})});const j=await r.json();if(!r.ok){if(r.status===403){setAuthorized(false);setVerifyOpen(true);}throw new Error(j.error);}setAuthorized(false);setVerifyOpen(false);setReason("");setStatus("finalized");setSavedAt(`Revision ${j.revision_number} saved`);}catch(e){setError(e instanceof Error?e.message:"Revision failed");}finally{setBusy(false);}}
  async function cancelBill(){
   setError("");
-  if(cancelReason.trim().length<5){setError("Enter a cancellation reason of at least five characters.");return;}
+  if(cancelReason.trim().length<5||cancelReason.trim().length>500){setError("Enter a cancellation reason between 5 and 500 characters.");return;}
   if(!window.confirm("Cancel this finalized invoice? The tracked stock will be returned. The invoice history will remain."))return;
   setBusy(true);
   try{
@@ -51,6 +51,7 @@ export default function BillEditor({initialId}:{initialId?:string}) {
     const result=await response.json();
     if(!response.ok)throw new Error(result.error||"Invoice cancellation failed");
     setStatus("cancelled");
+    setSavedCancellationReason(cancelReason.trim());
     setAuthorized(false);
     setCancelReason("");
     setReason("");
@@ -91,14 +92,14 @@ export default function BillEditor({initialId}:{initialId?:string}) {
  </>:status==="finalized"?<>
   {!authorized?<button className="btn primary" style={{width:"100%",marginBottom:8}} onClick={()=>setVerifyOpen(true)}><ShieldCheck size={14}/>Verify to edit or cancel</button>:<>
    <button className="btn primary" style={{width:"100%",marginBottom:8}} onClick={saveRevision} disabled={busy}><Save size={14}/>Save new revision</button>
-   <div className="field" style={{marginBottom:8}}><label>Cancellation reason (required)</label><textarea className="textarea" rows={2} value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="Explain why this invoice is being cancelled"/></div>
-   <button className="btn" style={{width:"100%",marginBottom:8}} onClick={cancelBill} disabled={busy||cancelReason.trim().length<5}>Cancel invoice</button>
+   <div className="field" style={{marginBottom:8}}><label>Cancellation reason (required)</label><textarea className="textarea" rows={2} maxLength={500} value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="Explain why this invoice is being cancelled"/></div>
+   <button className="btn" style={{width:"100%",marginBottom:8}} onClick={cancelBill} disabled={busy||cancelReason.trim().length<5||cancelReason.trim().length>500}>Cancel invoice</button>
   </>}
   <p className="stat-foot" style={{marginBottom:8}}>Before cancellation, reverse any recorded payments. The cancellation is retained in the invoice history and tracked stock is returned.</p>
   <button className="btn" style={{width:"100%",marginBottom:8}} onClick={()=>window.open("/api/bills/"+billId+"/pdf","_blank")}><FileDown size={14}/>Download PDF</button>
   <button className="btn" style={{width:"100%"}} onClick={shareWhatsApp}><MessageCircle size={14}/>Share on WhatsApp</button>
  </>:<>
-  <div className="notice">This invoice is cancelled. Its original record is retained and tracked stock has been returned.</div>
+  <div className="notice">This invoice is cancelled. Its original record is retained and tracked stock has been returned.{savedCancellationReason ? " Reason: " + savedCancellationReason : ""}</div>
   <button className="btn" style={{width:"100%",marginTop:8}} onClick={()=>window.open("/api/bills/"+billId+"/pdf","_blank")}><FileDown size={14}/>Download cancelled invoice</button>
  </>}
  </section></div>
