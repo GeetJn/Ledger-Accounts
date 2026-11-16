@@ -40,3 +40,11 @@ jobs:
         run: npm test
       - name: Production build
         run: npm run build
+
+      - name: Upload generated dependency lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: ledger-accounts-package-lock
+          path: ledger-accounts-root-folder-fixed (1)/package-lock.json
+          if-no-files-found: error
+          retention-days: 1
