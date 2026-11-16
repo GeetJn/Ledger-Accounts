@@ -10,6 +10,8 @@ type BillRow = { id: string; bill_number: number | null; bill_date: string; due_
 type PaymentRow = { id: string; bill_id: string; amount: number; method: string; reference: string | null; paid_at: string; reversed_at: string | null; reversal_reason: string | null };
 type LedgerData = {
   customer: { id: string; name: string; phone_e164: string | null; email: string | null; address: string | null };
+  currency: string;
+  locale: string;
   bills: BillRow[]; payments: PaymentRow[];
   summary: { invoice_count: number; total_billed: number; payments_received: number; outstanding: number };
   summary_complete: boolean;
@@ -66,6 +68,7 @@ export default function CustomerLedgerPage() {
   if (error && !data) return <div><div className="notice error">{error}</div><Link className="btn" href="/customers">Back to customers</Link></div>;
   if (!data) return <div className="empty">Customer not found.</div>;
   const { customer, bills, payments, summary, pagination } = data;
+  const formatMoney = (value: number) => money(value, data.currency || "INR", data.locale || "en-IN");
   return <>
     <div className="page-head">
       <div><div className="eyebrow">Customer account</div><h1>{customer.name}</h1><div className="subtitle">{[customer.phone_e164, customer.email, customer.address].filter(Boolean).join(" · ") || "Customer ledger and payment history"}</div></div>
@@ -74,22 +77,22 @@ export default function CustomerLedgerPage() {
     {error && <div className="notice error" style={{ marginBottom: 14 }}>{error}</div>}
     <div className="grid stats">
       <div className="card"><div className="stat-label">Invoices</div><div className="stat-value">{summary.invoice_count.toLocaleString()}</div><div className="stat-foot">Finalized invoices</div></div>
-      <div className="card"><div className="stat-label">Total billed</div><div className="stat-value">{money(summary.total_billed)}</div><div className="stat-foot">Invoice value</div></div>
-      <div className="card"><div className="stat-label">Payments received</div><div className="stat-value">{money(summary.payments_received)}</div><div className="stat-foot">Excludes reversed payments</div></div>
-      <div className="card"><div className="stat-label">Outstanding</div><div className="stat-value">{money(summary.outstanding)}</div><div className="stat-foot">Remaining invoice balance</div></div>
+      <div className="card"><div className="stat-label">Total billed</div><div className="stat-value">{formatMoney(summary.total_billed)}</div><div className="stat-foot">Invoice value</div></div>
+      <div className="card"><div className="stat-label">Payments received</div><div className="stat-value">{formatMoney(summary.payments_received)}</div><div className="stat-foot">Excludes reversed payments</div></div>
+      <div className="card"><div className="stat-label">Outstanding</div><div className="stat-value">{formatMoney(summary.outstanding)}</div><div className="stat-foot">Remaining invoice balance</div></div>
     </div>
     {!data.summary_complete && <div className="notice" style={{ marginTop: 14 }}>This customer has more than 10,000 ledger entries. Summary totals include the first 10,000 rows; contact support for a full historical reconciliation.</div>}
     <section className="card" style={{ marginTop: 18 }}>
       <h3 className="section-title">Invoice history</h3>
       <div className="table-wrap"><table className="table"><thead><tr><th>Invoice</th><th>Date</th><th>Due date</th><th>Total</th><th>Paid</th><th>Balance</th><th></th></tr></thead><tbody>
-        {bills.map((bill) => <tr key={bill.id}><td>#{bill.bill_number ?? "—"}</td><td>{bill.bill_date}</td><td>{bill.due_date || "—"}</td><td>{money(Number(bill.final_amount))}</td><td>{money(Number(bill.amount_paid))}</td><td>{money(Math.max(0, Number(bill.final_amount) - Number(bill.amount_paid)))}</td><td><Link className="btn small" href={`/create-bill?id=${bill.id}`}>Open</Link></td></tr>)}
+        {bills.map((bill) => <tr key={bill.id}><td>#{bill.bill_number ?? "—"}</td><td>{bill.bill_date}</td><td>{bill.due_date || "—"}</td><td>{formatMoney(Number(bill.final_amount))}</td><td>{formatMoney(Number(bill.amount_paid))}</td><td>{formatMoney(Math.max(0, Number(bill.final_amount) - Number(bill.amount_paid)))}</td><td><Link className="btn small" href={`/create-bill?id=${bill.id}`}>Open</Link></td></tr>)}
       </tbody></table>{!bills.length && <div className="empty">No finalized invoices for this customer yet.</div>}</div>
       <div className="row between" style={{ marginTop: 12 }}><span className="stat-foot">Page {pagination.bills.page} of {pagination.bills.total_pages} · {pagination.bills.total} invoices</span><div className="row"><button className="btn small" disabled={billPage <= 1 || busy} onClick={() => setBillPage((v) => Math.max(1, v - 1))}>Previous</button><button className="btn small" disabled={billPage >= pagination.bills.total_pages || busy} onClick={() => setBillPage((v) => v + 1)}>Next</button></div></div>
     </section>
     <section className="card" style={{ marginTop: 18 }}>
       <h3 className="section-title">Payment history</h3>
       <div className="table-wrap"><table className="table"><thead><tr><th>Date</th><th>Invoice ID</th><th>Method</th><th>Amount</th><th>Status</th><th>Reason</th></tr></thead><tbody>
-        {payments.map((payment) => <tr key={payment.id}><td>{new Date(payment.paid_at).toLocaleString()}</td><td>{payment.bill_id.slice(0, 8)}…</td><td>{payment.method.replaceAll("_", " ")}</td><td>{money(Number(payment.amount))}</td><td>{payment.reversed_at ? "Reversed" : "Received"}</td><td>{payment.reversal_reason || "—"}</td></tr>)}
+        {payments.map((payment) => <tr key={payment.id}><td>{new Date(payment.paid_at).toLocaleString()}</td><td>{payment.bill_id.slice(0, 8)}…</td><td>{payment.method.replaceAll("_", " ")}</td><td>{formatMoney(Number(payment.amount))}</td><td>{payment.reversed_at ? "Reversed" : "Received"}</td><td>{payment.reversal_reason || "—"}</td></tr>)}
       </tbody></table>{!payments.length && <div className="empty">No payments recorded for this customer.</div>}</div>
       <div className="row between" style={{ marginTop: 12 }}><span className="stat-foot">Page {pagination.payments.page} of {pagination.payments.total_pages} · {pagination.payments.total} payments</span><div className="row"><button className="btn small" disabled={paymentPage <= 1 || busy} onClick={() => setPaymentPage((v) => Math.max(1, v - 1))}>Previous</button><button className="btn small" disabled={paymentPage >= pagination.payments.total_pages || busy} onClick={() => setPaymentPage((v) => v + 1)}>Next</button></div></div>
     </section>
