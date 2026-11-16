@@ -5,11 +5,12 @@ import bcrypt from "bcryptjs";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 export async function POST(req: NextRequest) {
-  const admin = createAdminClient(); let shopId: string | null = null; let ownerId: string | null = null;
   try {
     const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
-    ownerId = user.id;
+    const admin = createAdminClient();
+    const ownerId = user.id;
+    let shopId: string | null = null;
     const { data: profile } = await supabase.from("profiles").select("shop_id").eq("id", user.id).single(); shopId = profile?.shop_id ?? null;
     if (!shopId) throw new Error("Shop profile is missing");
     const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
