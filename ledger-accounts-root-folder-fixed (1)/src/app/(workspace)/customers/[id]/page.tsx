@@ -10,8 +10,7 @@ type BillRow = { id: string; bill_number: number | null; bill_date: string; due_
 type PaymentRow = { id: string; bill_id: string; amount: number; method: string; reference: string | null; paid_at: string; reversed_at: string | null; reversal_reason: string | null };
 type LedgerData = {
   customer: { id: string; name: string; phone_e164: string | null; email: string | null; address: string | null };
-  bills: BillRow[];
-  payments: PaymentRow[];
+  bills: BillRow[]; payments: PaymentRow[];
   summary: { invoice_count: number; total_billed: number; payments_received: number; outstanding: number };
   summary_complete: boolean;
   pagination: {
@@ -41,46 +40,22 @@ export default function CustomerLedgerPage() {
         if (active) { setData(json); setError(""); }
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : "Unable to load customer ledger");
-      } finally {
-        if (active) setBusy(false);
-      }
+      } finally { if (active) setBusy(false); }
     })();
     return () => { active = false; };
   }, [params.id, billPage, paymentPage]);
 
   async function exportStatement() {
-    if (!data) return;
     setExporting(true); setError("");
     try {
-      const allBills: BillRow[] = [], allPayments: PaymentRow[] = [];
-      for (let page = 1; page <= data.pagination.bills.total_pages; page++) {
-        const q = new URLSearchParams({ bill_page: String(page), payment_page: "1" });
-        const r = await fetch(`/api/customers/${encodeURIComponent(params.id)}/ledger?${q}`);
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || "Unable to prepare statement");
-        allBills.push(...(j.bills || []));
+      const response = await fetch(`/api/customers/${encodeURIComponent(params.id)}/ledger?export=csv`);
+      if (!response.ok) {
+        const json = await response.json();
+        throw new Error(json.error || "Unable to prepare statement");
       }
-      for (let page = 1; page <= data.pagination.payments.total_pages; page++) {
-        const q = new URLSearchParams({ bill_page: "1", payment_page: String(page) });
-        const r = await fetch(`/api/customers/${encodeURIComponent(params.id)}/ledger?${q}`);
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || "Unable to prepare statement");
-        allPayments.push(...(j.payments || []));
-      }
-      const rows: unknown[][] = [
-        ["Type", "Date", "Reference", "Amount", "Paid", "Balance", "Status / method"],
-        ...allBills.map((bill) => ["Invoice", bill.bill_date, bill.bill_number ?? bill.id, bill.final_amount, bill.amount_paid,
-          Math.max(0, Number(bill.final_amount) - Number(bill.amount_paid)), bill.status]),
-        ...allPayments.map((payment) => ["Payment", payment.paid_at, payment.bill_id, payment.amount,
-          payment.reversed_at ? 0 : payment.amount, "", payment.reversed_at ? "Reversed" : payment.method]),
-      ];
-      const csv = rows.map((row) => row.map((value) => {
-        const raw = String(value ?? "");
-        const safe = /^[\s]*[=+@-]/.test(raw) ? "'" + raw : raw;
-        return '"' + safe.replaceAll('"', '""') + '"';
-      }).join(",")).join("\r\n");
-      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-      const link = document.createElement("a"); link.href = url; link.download = `customer-ledger-${data.customer.id}.csv`; link.click();
+      const blob = await response.blob(), url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url; link.download = `customer-ledger-${params.id}.csv`; link.click();
       URL.revokeObjectURL(url);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to export statement");
@@ -118,6 +93,6 @@ export default function CustomerLedgerPage() {
       </tbody></table>{!payments.length && <div className="empty">No payments recorded for this customer.</div>}</div>
       <div className="row between" style={{ marginTop: 12 }}><span className="stat-foot">Page {pagination.payments.page} of {pagination.payments.total_pages} · {pagination.payments.total} payments</span><div className="row"><button className="btn small" disabled={paymentPage <= 1 || busy} onClick={() => setPaymentPage((v) => Math.max(1, v - 1))}>Previous</button><button className="btn small" disabled={paymentPage >= pagination.payments.total_pages || busy} onClick={() => setPaymentPage((v) => v + 1)}>Next</button></div></div>
     </section>
-    <p className="stat-foot" style={{ marginTop: 12 }}>Read-only customer history. Invoice and payment lists are loaded 25 entries at a time; statement export downloads all available pages.</p>
+    <p className="stat-foot" style={{ marginTop: 12 }}>Read-only customer history. Invoice and payment lists are loaded 25 entries at a time; statement export downloads all entries up to the 20,000-row-per-type export limit.</p>
   </>;
 }
