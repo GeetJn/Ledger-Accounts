@@ -28,6 +28,9 @@ export default function Reports() {
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const currency = String(data?.currency || "INR");
+  const locale = String(data?.locale || "en-IN");
+  const formatMoney = (value: number) => formatMoney(value, currency, locale);
 
   async function load() {
     setBusy(true);
@@ -128,29 +131,29 @@ export default function Reports() {
       heading("Financial summary");
       const metrics: Array<[string, string]> = [
         ["Finalized invoices", Number(data.bill_count || 0).toLocaleString()],
-        ["Total billed", money(Number(data.billed_value || 0))],
-        ["Net sales excluding tax", money(Number(data.net_sales_ex_tax || 0))],
-        ["Cost of goods sold", money(Number(data.cost_of_goods_sold || 0))],
-        ["Estimated gross profit", money(Number(data.estimated_gross_profit || 0))],
-        ["Estimated operating result", money(Number(data.estimated_operating_result || 0))],
-        ["Payments received", money(Number(data.payments_received || 0))],
-        ["Outstanding balance", money(Number(data.outstanding || 0))],
-        ["Discounts", money(Number(data.discounts || 0))],
-        ["Expenses", money(Number(data.expenses || 0))],
+        ["Total billed", formatMoney(Number(data.billed_value || 0))],
+        ["Net sales excluding tax", formatMoney(Number(data.net_sales_ex_tax || 0))],
+        ["Cost of goods sold", formatMoney(Number(data.cost_of_goods_sold || 0))],
+        ["Estimated gross profit", formatMoney(Number(data.estimated_gross_profit || 0))],
+        ["Estimated operating result", formatMoney(Number(data.estimated_operating_result || 0))],
+        ["Payments received", formatMoney(Number(data.payments_received || 0))],
+        ["Outstanding balance", formatMoney(Number(data.outstanding || 0))],
+        ["Discounts", formatMoney(Number(data.discounts || 0))],
+        ["Expenses", formatMoney(Number(data.expenses || 0))],
       ];
       for (const [label, value] of metrics) row(label, value);
 
       heading("Monthly sales trend");
-      for (const month of data.monthly_sales || []) row(month.label, money(Number(month.sales || 0)));
+      for (const month of data.monthly_sales || []) row(month.label, formatMoney(Number(month.sales || 0)));
 
       heading("Top customers by billed value");
       for (const customer of data.top_customers || []) {
-        row(customer.name, money(Number(customer.billed || 0)) + " · " + customer.invoice_count + " invoices");
+        row(customer.name, formatMoney(Number(customer.billed || 0)) + " · " + customer.invoice_count + " invoices");
       }
 
       heading("Top products by sales value");
       for (const item of data.top_items || []) {
-        row(item.name, money(Number(item.sales || 0)) + " · Quantity " + Number(item.quantity || 0).toLocaleString());
+        row(item.name, formatMoney(Number(item.sales || 0)) + " · Quantity " + Number(item.quantity || 0).toLocaleString());
       }
 
       if (data.analytics_truncated) {
@@ -187,15 +190,15 @@ export default function Reports() {
   const missingCostLines = Number(data?.cost_missing_lines || 0);
   const values: Array<[string, string, string]> = [
     ["Finalized invoices", Number(data?.bill_count || 0).toLocaleString(), "Bills in selected range"],
-    ["Total billed", money(Number(data?.billed_value || 0)), "Invoice value including tax; not cash received"],
-    ["Net sales (excl. tax)", money(Number(data?.net_sales_ex_tax || 0)), "Finalized invoice value less tax"],
-    ["Cost of goods sold", money(Number(data?.cost_of_goods_sold || 0)), "Based on saved invoice-line purchase-cost snapshots"],
-    ["Estimated gross profit", money(Number(data?.estimated_gross_profit || 0)), "Estimate; " + missingCostLines + " invoice lines have no recorded cost"],
-    ["Estimated operating result", money(Number(data?.estimated_operating_result || 0)), "Estimated gross profit less recorded expenses"],
-    ["Payments received", money(Number(data?.payments_received || 0)), "Recorded payments; excluding reversals"],
-    ["Outstanding balance", money(Number(data?.outstanding || 0)), "Remaining customer balances"],
-    ["Discounts", money(Number(data?.discounts || 0)), "Discounts applied"],
-    ["Expenses", money(Number(data?.expenses || 0)), "Recorded active expenses"],
+    ["Total billed", formatMoney(Number(data?.billed_value || 0)), "Invoice value including tax; not cash received"],
+    ["Net sales (excl. tax)", formatMoney(Number(data?.net_sales_ex_tax || 0)), "Finalized invoice value less tax"],
+    ["Cost of goods sold", formatMoney(Number(data?.cost_of_goods_sold || 0)), "Based on saved invoice-line purchase-cost snapshots"],
+    ["Estimated gross profit", formatMoney(Number(data?.estimated_gross_profit || 0)), "Estimate; " + missingCostLines + " invoice lines have no recorded cost"],
+    ["Estimated operating result", formatMoney(Number(data?.estimated_operating_result || 0)), "Estimated gross profit less recorded expenses"],
+    ["Payments received", formatMoney(Number(data?.payments_received || 0)), "Recorded payments; excluding reversals"],
+    ["Outstanding balance", formatMoney(Number(data?.outstanding || 0)), "Remaining customer balances"],
+    ["Discounts", formatMoney(Number(data?.discounts || 0)), "Discounts applied"],
+    ["Expenses", formatMoney(Number(data?.expenses || 0)), "Recorded active expenses"],
   ];
 
   return <>
@@ -224,7 +227,7 @@ export default function Reports() {
         {monthly.map((m) => <div key={m.key} style={{ display: "grid", gridTemplateColumns: "76px minmax(0,1fr) 110px", gap: 10, alignItems: "center" }}>
           <span className="stat-foot">{m.label}</span>
           <div style={{ height: 12, background: "var(--line)", borderRadius: 20, overflow: "hidden" }}><div style={{ height: "100%", width: (Number(m.sales || 0) / maxMonthly * 100) + "%", background: "var(--accent)", borderRadius: 20 }}/></div>
-          <b style={{ textAlign: "right", fontSize: 12 }}>{money(Number(m.sales || 0))}</b>
+          <b style={{ textAlign: "right", fontSize: 12 }}>{formatMoney(Number(m.sales || 0))}</b>
         </div>)}
         {!monthly.length && <div className="empty">No monthly sales data in the selected range.</div>}
       </div>
@@ -235,20 +238,20 @@ export default function Reports() {
       <section className="card">
         <h3 className="section-title">Top customers by billed value</h3>
         <div className="table-wrap"><table className="table"><thead><tr><th>Customer</th><th>Invoices</th><th>Billed</th></tr></thead><tbody>
-          {(data?.top_customers || []).map((customer) => <tr key={customer.name}><td>{customer.name}</td><td>{customer.invoice_count}</td><td>{money(Number(customer.billed || 0))}</td></tr>)}
+          {(data?.top_customers || []).map((customer) => <tr key={customer.name}><td>{customer.name}</td><td>{customer.invoice_count}</td><td>{formatMoney(Number(customer.billed || 0))}</td></tr>)}
         </tbody></table>{!data?.top_customers?.length && <div className="empty">No customer ranking data.</div>}</div>
       </section>
       <section className="card">
         <h3 className="section-title">Top products by sales value</h3>
         <div className="table-wrap"><table className="table"><thead><tr><th>Product</th><th>Quantity</th><th>Sales</th></tr></thead><tbody>
-          {(data?.top_items || []).map((item) => <tr key={item.name}><td>{item.name}</td><td>{Number(item.quantity || 0).toLocaleString()}</td><td>{money(Number(item.sales || 0))}</td></tr>)}
+          {(data?.top_items || []).map((item) => <tr key={item.name}><td>{item.name}</td><td>{Number(item.quantity || 0).toLocaleString()}</td><td>{formatMoney(Number(item.sales || 0))}</td></tr>)}
         </tbody></table>{!data?.top_items?.length && <div className="empty">No product ranking data.</div>}</div>
       </section>
     </div>
     <section className="card" style={{ marginTop: 18 }}>
       <h3 className="section-title">Recent sales records</h3>
       <div className="table-wrap"><table className="table"><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Final amount</th><th>Paid</th></tr></thead><tbody>
-        {bills.map((b) => <tr key={b.id}><td>#{b.bill_number ?? "—"}</td><td>{b.bill_date}</td><td>{b.customer_name || "Walk-in"}</td><td>{money(Number(b.final_amount))}</td><td>{money(Number(b.amount_paid))}</td></tr>)}
+        {bills.map((b) => <tr key={b.id}><td>#{b.bill_number ?? "—"}</td><td>{b.bill_date}</td><td>{b.customer_name || "Walk-in"}</td><td>{formatMoney(Number(b.final_amount))}</td><td>{formatMoney(Number(b.amount_paid))}</td></tr>)}
       </tbody></table>{!bills.length && <div className="empty">{busy ? "Loading report…" : "No finalized invoices in the selected range."}</div>}</div>
       {data?.bills_truncated && <p className="stat-foot" style={{ marginTop: 10 }}>Showing the 500 most recent matching invoices. The CSV export includes all matching invoices up to 10,000 per export.</p>}
     </section>
