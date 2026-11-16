@@ -5,6 +5,8 @@ export const runtime = "nodejs";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params; const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
     const { data: bill, error } = await supabase.from("bills").select("*,bill_items(*)").eq("id", id).single(); if (error) throw error;
     if (bill.status !== "finalized" && bill.status !== "cancelled") throw new Error("Only finalized bills have customer PDFs");
     const { data: shop } = await supabase.from("shops").select("name,phone_e164,address,tax_label,tax_identifier,currency,locale,timezone,invoice_footer").eq("id", bill.shop_id).single();
