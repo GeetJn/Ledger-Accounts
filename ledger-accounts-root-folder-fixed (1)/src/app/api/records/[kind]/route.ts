@@ -14,6 +14,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ kin
     const t = table(kind);
     if (!t) return NextResponse.json({ error: "Unknown record type" }, { status: 404 });
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
     const { data, error } = await supabase.from(t).select("*")
       .is("archived_at", null)
       .order(t === "expenses" ? "expense_date" : "created_at", { ascending: false })
