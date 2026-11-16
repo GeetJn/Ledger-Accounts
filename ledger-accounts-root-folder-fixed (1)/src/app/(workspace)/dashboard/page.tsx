@@ -19,10 +19,13 @@ export default async function Dashboard() {
           s.from("bills").select("id,bill_number,customer_name,status,final_amount,amount_paid,created_at").eq("status", "finalized").order("created_at", { ascending: false }).limit(6),
           s.rpc("business_summary", { p_from: null, p_to: null }),
           s.from("shops").select("name,currency,timezone").eq("id", p.shop_id).single(),
-          s.from("bills").select("id,bill_number,customer_name,due_date,final_amount,amount_paid").eq("status", "finalized").not("due_date", "is", null).order("due_date", { ascending: true }).limit(100),
+          s.from("bills").select("id,bill_number,customer_name,due_date,final_amount,amount_paid").eq("status", "finalized").not("due_date", "is", null).lte("due_date", nextSevenDays).order("due_date", { ascending: true }).limit(100),
         ]);
         shop = sh?.name || shop; currency = sh?.currency || currency; timezone = sh?.timezone || timezone;
         today = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+        const todayDate = new Date(today + "T12:00:00");
+        todayDate.setDate(todayDate.getDate() + 7);
+        const nextSevenDays = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(todayDate);
         stats = {
           billCount: Number(summary?.bill_count || 0), billed: Number(summary?.billed_value || 0),
           received: Number(summary?.payments_received || 0), outstanding: Number(summary?.outstanding || 0),
@@ -56,11 +59,11 @@ export default async function Dashboard() {
       </div></section>
     </div>
     <section className="card" style={{ marginTop: 18 }}>
-      <div className="row between"><h3 className="section-title"><Clock3 size={16}/>Due-date reminders</h3><Link href="/payments" className="btn small">Review balances</Link></div>
+      <div className="row between"><h3 className="section-title"><Clock3 size={16}/>Overdue & upcoming (next 7 days)</h3><Link href="/payments" className="btn small">Review balances</Link></div>
       {dueBills.length ? <div className="table-wrap"><table className="table"><thead><tr><th>Invoice</th><th>Customer</th><th>Due date</th><th>Balance</th><th>Status</th></tr></thead><tbody>
-        {dueBills.map((bill) => { const overdue = bill.due_date < today; return <tr key={bill.id}><td>#{bill.bill_number ?? "—"}</td><td>{bill.customer_name || "Walk-in"}</td><td>{bill.due_date}</td><td><b>{money(Number(bill.final_amount) - Number(bill.amount_paid), currency)}</b></td><td><span className={`badge ${overdue ? "warning" : ""}`}>{overdue ? "Overdue" : "Due soon"}</span></td></tr>; })}
-      </tbody></table></div> : <div className="empty">No outstanding invoices with a due date.</div>}
-      <p className="stat-foot" style={{ marginTop: 10 }}>These are in-app reminders based on invoice due dates. Automatic email or SMS notifications are not enabled.</p>
+        {dueBills.map((bill) => { const daysUntilDue = Math.round((new Date(bill.due_date + "T12:00:00").getTime() - new Date(today + "T12:00:00").getTime()) / 86400000); const status = daysUntilDue < 0 ? "Overdue by " + Math.abs(daysUntilDue) + " days" : daysUntilDue === 0 ? "Due today" : "Due in " + daysUntilDue + " days"; return <tr key={bill.id}><td>#{bill.bill_number ?? "—"}</td><td>{bill.customer_name || "Walk-in"}</td><td>{bill.due_date}</td><td><b>{money(Number(bill.final_amount) - Number(bill.amount_paid), currency)}</b></td><td><span className={`badge ${daysUntilDue <= 0 ? "warning" : ""}`}>{status}</span></td></tr>; })}
+      </tbody></table></div> : <div className="empty">No unpaid invoices are overdue or due within the next seven days.</div>}
+      <p className="stat-foot" style={{ marginTop: 10 }}>These in-app reminders show overdue invoices and invoices due within seven days. Automatic email or SMS notifications are not enabled.</p>
     </section>
   </>;
 }
