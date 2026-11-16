@@ -15,17 +15,17 @@ export default async function Dashboard() {
       const { data: p } = await s.from("profiles").select("full_name,shop_id").eq("id", user.id).single();
       name = p?.full_name || user.email?.split("@")[0] || name;
       if (p?.shop_id) {
-        const [{ data: b }, { data: summary }, { data: sh }, { data: due }] = await Promise.all([
-          s.from("bills").select("id,bill_number,customer_name,status,final_amount,amount_paid,created_at").eq("status", "finalized").order("created_at", { ascending: false }).limit(6),
-          s.rpc("business_summary", { p_from: null, p_to: null }),
-          s.from("shops").select("name,currency,timezone").eq("id", p.shop_id).single(),
-          s.from("bills").select("id,bill_number,customer_name,due_date,final_amount,amount_paid").eq("status", "finalized").not("due_date", "is", null).lte("due_date", nextSevenDays).order("due_date", { ascending: true }).limit(100),
-        ]);
+        const { data: sh } = await s.from("shops").select("name,currency,timezone").eq("id", p.shop_id).single();
         shop = sh?.name || shop; currency = sh?.currency || currency; timezone = sh?.timezone || timezone;
         today = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
         const todayDate = new Date(today + "T12:00:00");
         todayDate.setDate(todayDate.getDate() + 7);
         const nextSevenDays = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(todayDate);
+        const [{ data: b }, { data: summary }, { data: due }] = await Promise.all([
+          s.from("bills").select("id,bill_number,customer_name,status,final_amount,amount_paid,created_at").eq("status", "finalized").order("created_at", { ascending: false }).limit(6),
+          s.rpc("business_summary", { p_from: null, p_to: null }),
+          s.from("bills").select("id,bill_number,customer_name,due_date,final_amount,amount_paid").eq("status", "finalized").not("due_date", "is", null).lte("due_date", nextSevenDays).order("due_date", { ascending: true }).limit(100),
+        ]);
         stats = {
           billCount: Number(summary?.bill_count || 0), billed: Number(summary?.billed_value || 0),
           received: Number(summary?.payments_received || 0), outstanding: Number(summary?.outstanding || 0),
