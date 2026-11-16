@@ -40,6 +40,26 @@ export default function CustomerLedgerPage() {
   if (error || !data) return <div><div className="notice error">{error || "Customer not found"}</div><Link className="btn" href="/customers">Back to customers</Link></div>;
 
   const { customer, bills, payments, summary } = data;
+  function exportStatement() {
+    const rows: unknown[][] = [
+      ["Type", "Date", "Reference", "Amount", "Paid", "Balance", "Status / method"],
+      ...bills.map(bill => ["Invoice", bill.bill_date, bill.bill_number ?? bill.id, bill.final_amount, bill.amount_paid,
+        Math.max(0, Number(bill.final_amount) - Number(bill.amount_paid)), bill.status]),
+      ...payments.map(payment => ["Payment", payment.paid_at, payment.bill_id, payment.amount,
+        payment.reversed_at ? 0 : payment.amount, "", payment.reversed_at ? "Reversed" : payment.method]),
+    ];
+    const csv = rows.map(row => row.map(value => {
+      const raw = String(value ?? "");
+      const safe = /^[\\s]*[=+\\-@]/.test(raw) ? "'" + raw : raw;
+      return '"' + safe.replaceAll('"', '""') + '"';
+    }).join(",")).join("\\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `customer-ledger-${customer.id}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
   return <>
     <div className="page-head">
       <div>
