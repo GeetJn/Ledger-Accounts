@@ -36,6 +36,15 @@ describe("report analytics", () => {
     expect(result.monthly_range_truncated).toBe(false);
   });
 
+  it("defaults to six calendar months including the current month", () => {
+    const result = buildReportAnalytics(
+      [], 0, null, null, new Date("2026-11-17T12:00:00.000Z"),
+    );
+    expect(result.monthly_sales.map((row) => row.key)).toEqual([
+      "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11",
+    ]);
+  });
+
   it("uses only the most recent 60 months for long report periods", () => {
     const result = buildReportAnalytics([], 0, "2010-01-01", "2025-12-31");
     expect(result.monthly_sales).toHaveLength(60);
