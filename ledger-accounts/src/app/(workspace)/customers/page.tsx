@@ -1,0 +1,3 @@
+import RecordsPage from "@/components/RecordsPage";
+import { countries } from "@/lib/countries";
+export default function Customers(){return <RecordsPage config={{kind:"customers",title:"Customer history",description:"Save customer contact details and reuse them on future invoices.",fields:[{key:"name",label:"Customer name",required:true},{key:"phone",label:"Phone with country code",required:false},{key:"country_code",label:"Customer country",optionValues:countries.map(c=>({value:c.code,label:`${c.flag} ${c.name} (${c.dial})`}))},{key:"email",label:"Email"},{key:"address",label:"Address"},{key:"notes",label:"Notes"}],columns:[{key:"name",label:"Customer"},{key:"phone_e164",label:"Phone"},{key:"email",label:"Email"},{key:"address",label:"Address"}]}}/>}
