@@ -12,6 +12,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const normalized = { ...parsed.data, customer_phone: parsed.data.customer_phone ? toE164(parsed.data.customer_phone, parsed.data.customer_country) : null };
     const tokenHash = createHash("sha256").update(token).digest("hex");
     const { data, error } = await supabase.rpc("revise_finalized_bill", { p_bill_id: id, p_data: normalized, p_token_hash: tokenHash, p_reason: body.reason || null }); if (error) throw error;
-    return NextResponse.json({ revision_number: data });
+    const response = NextResponse.json({ revision_number: data });
+    response.cookies.set("ledger_owner_verification", "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 0,
+    });
+    return response;
   } catch (e) { const message=e instanceof Error?e.message:"Unable to save bill revision"; return NextResponse.json({ error: message }, { status: /verification|required|expired/i.test(message)?403:400 }); }
 }
