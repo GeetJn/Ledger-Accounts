@@ -50,9 +50,9 @@ export default function CustomerLedgerPage() {
     ];
     const csv = rows.map(row => row.map(value => {
       const raw = String(value ?? "");
-      const safe = /^[\\s]*[=+\\-@]/.test(raw) ? "'" + raw : raw;
+      const safe = /^[\s]*[=+\-@]/.test(raw) ? "'" + raw : raw;
       return '"' + safe.replaceAll('"', '""') + '"';
-    }).join(",")).join("\\n");
+    }).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
