@@ -49,7 +49,7 @@ export default function BillEditor({initialId}:{initialId?:string}) {
   try{
     const response=await fetch("/api/bills/"+billId+"/cancel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({reason:cancelReason.trim()})});
     const result=await response.json();
-    if(!response.ok)throw new Error(result.error||"Invoice cancellation failed");
+    if(!response.ok){if(response.status===403){setAuthorized(false);setVerifyOpen(true);}throw new Error(result.error||"Invoice cancellation failed");}
     setStatus("cancelled");
     setSavedCancellationReason(cancelReason.trim());
     setAuthorized(false);
