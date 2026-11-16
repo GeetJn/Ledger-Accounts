@@ -30,7 +30,7 @@ export default function Reports() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const currency = String(data?.currency || "INR");
   const locale = String(data?.locale || "en-IN");
-  const formatMoney = (value: number) => formatMoney(value, currency, locale);
+  const formatMoney = (value: number) => money(value, currency, locale);
 
   async function load() {
     setBusy(true);
