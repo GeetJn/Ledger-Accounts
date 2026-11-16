@@ -60,7 +60,7 @@ A Next.js + TypeScript business billing application scaffold using Supabase Auth
 
 1. Create a GitHub repository named `ledger-accounts`.
 2. Upload the contents of this folder (the `package.json` must be at the repository root).
-3. In Vercel, import the GitHub repository. Framework preset should be **Next.js**; root directory should be `.`.
+3. In Vercel, import the GitHub repository. Framework preset should be **Next.js**. **For the current GitHub repository layout, set Root Directory to `ledger-accounts-root-folder-fixed (1)`**, because that is where `package.json` and the Next.js app are located. Do not use `.` unless you first move the project files to the repository root.
 4. Add the same environment variables from `.env.local` in Vercel Project Settings → Environment Variables. Add them for Preview and Production as needed.
 5. Deploy. Later pushes to the connected GitHub branch trigger new Vercel deployments.
 6. In Supabase Authentication settings, add your production `https://YOUR_DOMAIN/auth/callback` URL to the redirect allow list.
