@@ -36,8 +36,11 @@ function buildAnalytics(rows: ReportBill[], total: number, from: string | null, 
   const endMonth = (to || now.toISOString().slice(0, 10)).slice(0, 7);
   const defaultStart = new Date(Number(endMonth.slice(0, 4)), Number(endMonth.slice(5, 7)) - 6, 1);
   const startMonth = (from || defaultStart.toISOString().slice(0, 7)).slice(0, 7);
-  let cursor = new Date(Number(startMonth.slice(0, 4)), Number(startMonth.slice(5, 7)) - 1, 1);
   const finish = new Date(Number(endMonth.slice(0, 4)), Number(endMonth.slice(5, 7)) - 1, 1);
+  let cursor = new Date(Number(startMonth.slice(0, 4)), Number(startMonth.slice(5, 7)) - 1, 1);
+  const monthSpan = (finish.getFullYear() - cursor.getFullYear()) * 12 + finish.getMonth() - cursor.getMonth() + 1;
+  const monthlyRangeTruncated = monthSpan > 60;
+  if (monthlyRangeTruncated) cursor = new Date(finish.getFullYear(), finish.getMonth() - 59, 1);
   const monthly: Array<{ key: string; label: string; sales: number }> = [];
   const monthIndex = new Map<string, number>();
   while (cursor <= finish && monthly.length < 60) {
@@ -72,7 +75,7 @@ function buildAnalytics(rows: ReportBill[], total: number, from: string | null, 
     top_customers: Array.from(customers.values()).sort((a, b) => b.billed - a.billed).slice(0, 8),
     top_items: Array.from(items.values()).sort((a, b) => b.sales - a.sales).slice(0, 8),
     analytics_truncated: total > rows.length,
-    monthly_range_truncated: cursor <= finish,
+    monthly_range_truncated: monthlyRangeTruncated,
   };
 }
 
@@ -126,6 +129,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const { data: profile, error: profileError } = await supabase.from("profiles").select("shop_id").eq("id", user.id).single();
+    if (profileError || !profile?.shop_id) return NextResponse.json({ error: "Business profile not found" }, { status: 404 });
+    const { data: shop } = await supabase.from("shops").select("currency,locale").eq("id", profile.shop_id).single();
+
     const [{ data: summary, error: summaryError }, { data: rawBills, error, count }] = await Promise.all([
       supabase.rpc("business_summary", { p_from: from || null, p_to: to || null }),
       (() => {
@@ -148,6 +155,8 @@ export async function GET(req: NextRequest) {
     const analytics = buildAnalytics(rows, total, from, to);
     return NextResponse.json({
       ...(summary || {}),
+      currency: shop?.currency || "INR",
+      locale: shop?.locale || "en-IN",
       bills: rows.slice(0, 500).map(({ bill_items: _items, ...bill }) => bill),
       bills_total: total,
       bills_truncated: total > 500,
