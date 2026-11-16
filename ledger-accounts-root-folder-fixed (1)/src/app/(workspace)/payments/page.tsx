@@ -155,7 +155,7 @@ export default function Payments() {
       <h3 className="section-title">Recent payment history</h3>
       <div className="table-wrap">
         <table className="table">
-          <thead><tr><th>Payment</th><th>Bill reference</th><th>Amount</th><th>Method</th><th>Date</th><th>Status / action</th></tr></thead>
+          <thead><tr><th>Payment</th><th>Bill reference</th><th>Amount</th><th>Method</th><th>Date</th><th>Status / action</th><th>Receipt</th></tr></thead>
           <tbody>
             {payments.map(p => <tr key={p.id}>
               <td>{p.id.slice(0, 8)}</td>
@@ -166,6 +166,7 @@ export default function Payments() {
               <td>{p.reversed_at
                 ? <span className="stat-foot">Reversed · {p.reversal_reason || "Reason recorded"}</span>
                 : <button className="btn small" disabled={busy} onClick={() => reversePayment(p.id)}>Reverse</button>}</td>
+              <td><a className="btn small" href={`/api/payments/${p.id}/receipt`} target="_blank" rel="noreferrer">PDF</a></td>
             </tr>)}
           </tbody>
         </table>
