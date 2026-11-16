@@ -42,6 +42,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!user) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
 
     const search = new URL(req.url).searchParams;
+    const { data: profile } = await supabase.from("profiles").select("shop_id").eq("id", user.id).single();
+    if (!profile?.shop_id) return NextResponse.json({ error: "Business profile not found" }, { status: 404 });
+    const { data: shop } = await supabase.from("shops").select("currency,locale").eq("id", profile.shop_id).single();
     const { data: customer, error: customerError } = await supabase.from("customers")
       .select("id,name,phone_e164,email,address").eq("id", id).is("archived_at", null).single();
     if (customerError || !customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 });
@@ -103,7 +106,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const paymentsReceived = paymentTotals.reduce((sum, row) => sum + (row.reversed_at ? 0 : Number(row.amount || 0)), 0);
 
     return NextResponse.json({
-      customer, bills: bills || [], payments: payments || [],
+      customer, currency: shop?.currency || "INR", locale: shop?.locale || "en-IN", bills: bills || [], payments: payments || [],
       summary: { invoice_count: billTotal, total_billed: totalBilled, payments_received: paymentsReceived, outstanding },
       summary_complete: billTotal <= SUMMARY_LIMIT && paymentTotal <= SUMMARY_LIMIT,
       pagination: {
