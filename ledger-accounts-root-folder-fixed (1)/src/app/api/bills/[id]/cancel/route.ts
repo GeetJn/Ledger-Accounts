@@ -17,8 +17,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const body = await req.json();
     const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-    if (reason.length < 5) {
-      return NextResponse.json({ error: "Enter a cancellation reason of at least five characters." }, { status: 400 });
+    if (reason.length < 5 || reason.length > 500) {
+      return NextResponse.json({ error: "Enter a cancellation reason between 5 and 500 characters." }, { status: 400 });
     }
 
     const tokenHash = createHash("sha256").update(token).digest("hex");
