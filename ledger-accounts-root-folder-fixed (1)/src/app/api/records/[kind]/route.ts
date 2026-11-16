@@ -51,6 +51,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ kin
         name: String(body.name ?? "").trim(),
         mrp: Number(body.mrp),
         unit: body.unit || "pcs",
+        category: String(body.category || "General").trim(),
+        cost_price: body.cost_price === "" || body.cost_price === undefined ? 0 : Number(body.cost_price),
+        low_stock_threshold: body.low_stock_threshold === "" || body.low_stock_threshold === undefined ? 5 : Number(body.low_stock_threshold),
         description: body.description || null,
         sku: body.sku || null,
         tax_rate: body.tax_rate === "" || body.tax_rate === undefined ? null : Number(body.tax_rate),
@@ -81,6 +84,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ kin
     if (!String(payload.name ?? payload.title ?? "").trim()) throw new Error("A name or title is required");
     const amount = Number(payload.mrp ?? payload.amount ?? 0);
     if (!Number.isFinite(amount) || amount < 0) throw new Error("Enter a valid non-negative amount");
+    if (t === "items" && (!Number.isFinite(Number(payload.cost_price)) || Number(payload.cost_price) < 0 ||
+      !Number.isFinite(Number(payload.low_stock_threshold)) || Number(payload.low_stock_threshold) < 0)) {
+      throw new Error("Cost price and low-stock threshold must be valid non-negative numbers.");
+    }
 
     const { data, error } = await supabase.from(t).insert(payload).select("*").single();
     if (error) throw error;
@@ -115,7 +122,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ki
     const { id, ...raw } = body;
     if (!id) throw new Error("Record ID is required");
     const fields = t === "items"
-      ? ["name", "mrp", "unit", "description", "sku", "tax_rate"]
+      ? ["name", "mrp", "unit", "category", "cost_price", "low_stock_threshold", "description", "sku", "tax_rate"]
       : t === "customers"
         ? ["name", "phone_e164", "email", "address", "notes"]
         : ["title", "amount", "expense_date", "category", "method", "description"];
@@ -124,6 +131,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ki
 
     if (t === "items") {
       if (Object.hasOwn(raw, "mrp")) patch.mrp = Number(raw.mrp);
+      if (Object.hasOwn(raw, "cost_price")) patch.cost_price = Number(raw.cost_price);
+      if (Object.hasOwn(raw, "low_stock_threshold")) patch.low_stock_threshold = Number(raw.low_stock_threshold);
+      if ((patch.cost_price !== undefined && (!Number.isFinite(Number(patch.cost_price)) || Number(patch.cost_price) < 0)) ||
+        (patch.low_stock_threshold !== undefined && (!Number.isFinite(Number(patch.low_stock_threshold)) || Number(patch.low_stock_threshold) < 0))) {
+        throw new Error("Cost price and low-stock threshold must be valid non-negative numbers.");
+      }
       if (raw.tax_rate === "") patch.tax_rate = null;
       else if (raw.tax_rate !== undefined) patch.tax_rate = Number(raw.tax_rate);
     }
