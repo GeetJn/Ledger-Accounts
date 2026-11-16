@@ -1,0 +1,42 @@
+name: Ledger Accounts CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ledger-accounts-root-folder-fixed (1)/**"
+      - ".github/workflows/ledger-accounts-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "ledger-accounts-root-folder-fixed (1)/**"
+      - ".github/workflows/ledger-accounts-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "ledger-accounts-root-folder-fixed (1)"
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: "ledger-accounts-root-folder-fixed (1)/package.json"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: TypeScript check
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
